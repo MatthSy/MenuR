@@ -126,25 +126,25 @@ pub(crate) fn fetch_entry_from_bytes(input: Vec<u8>) -> Option<Entry> {
 
         // Split lines on '=' and parse {key,value} pairs
         let mut split = line.split("=");
-        if let Some(val1) = split.next() {
-            if let Some(val2) = split.next() {
-                // Matches keys and assign the values on the Entry outputed
-                match val1 {
-                    "NoDisplay" => {
-                        // If NoDisplay is true then return None to ignore the entry
-                        if val2.to_lowercase() == "true" {
-                            return None;
-                        }
+        if let Some(val1) = split.next()
+            && let Some(val2) = split.next()
+        {
+            // Matches keys and assign the values on the Entry outputed
+            match val1 {
+                "NoDisplay" => {
+                    // If NoDisplay is true then return None to ignore the entry
+                    if val2.to_lowercase() == "true" {
+                        return None;
                     }
-                    "OnlyShowIn" => output.only_show_in = Some(val2.to_string()),
-                    "Name" => output.name = val2.to_string(),
-                    "Type" => output.r#type = val2.to_string(),
-                    "Icon" => output.img_path = val2.to_string(),
-                    "Comment" | "Categories" | "Description" | "Keywords" => {
-                        output.parse_keywords(val2)
-                    }
-                    _ => (),
                 }
+                "OnlyShowIn" => output.only_show_in = Some(val2.to_string()),
+                "Name" => output.name = val2.to_string(),
+                "Type" => output.r#type = val2.to_string(),
+                "Icon" => output.img_path = val2.to_string(),
+                "Comment" | "Categories" | "Description" | "Keywords" => {
+                    output.parse_keywords(val2)
+                }
+                _ => (),
             }
         }
     }

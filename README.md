@@ -7,4 +7,4 @@
 - Sorting entries : TODO
     - sorting on names : TODO
     - Sorting on cache : TODO
-- start the selected app : TODO
+- start the selected app : OK, must change the selecting part

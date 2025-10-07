@@ -1,6 +1,7 @@
 mod entries;
 mod keywords;
 mod ui;
+mod wl_wrap;
 
 use ui::ui;
 
@@ -39,6 +40,8 @@ fn main() -> glib::ExitCode {
     eprintln!("Failed to re-exec: {:?}", err);
     std::process::exit(1);
 
+    // NOTE: Remove later:
+    //
     // unsafe {
     //     env::set_var("GSK_RENDERER", "cairo"); // force CPU renderer (Real impact on performance)
     //     env::set_var("GDK_DISABLE", "gl"); // disable OpenGL (small impact)

@@ -1,14 +1,27 @@
 use crate::entries::{fetch_entries_from_paths, fetch_entries_to_string};
 use crate::keywords::Keywords;
+use crate::wl_wrap;
 use std::time::Instant;
 use std::{cell::RefCell, rc::Rc};
 
+use gdk4_wayland::prelude::WaylandSurfaceExtManual;
+use gdk4_wayland::prelude::*;
+use gdk4_wayland::WaylandSurface;
 use gtk4::{
     glib::{self, clone},
     prelude::*,
     Application, ApplicationWindow, FlowBox, FlowBoxChild, Image, Label, ListBox, ListBoxRow,
     ScrolledWindow, SearchEntry,
 };
+
+// use smithay_client_toolkit::reexports::client::protocol::wl_display::WlDisplay;
+// use smithay_client_toolkit::reexports::client::protocol::{wl_display, GlobalManager};
+// use smithay_client_toolkit::reexports::protocols::wlr::layer_shell::v1::client::{
+//     zwlr_layer_shell_v1::ZwlrLayerShellV1, zwlr_layer_surface_v1::Layer,
+// };
+// use smithay_client_toolkit::reexports::client::{globals::GlobalList, Connection};
+// use smithay_client_toolkit::shell::wlr_layer::LayerSurface;
+use smithay_client_toolkit::shell::wlr_layer::Layer;
 
 pub(crate) fn ui(app: &Application) {
     let time = Instant::now();
@@ -18,10 +31,35 @@ pub(crate) fn ui(app: &Application) {
     let window = ApplicationWindow::builder()
         .application(app)
         .title("Menu")
+        .default_width(400)
+        .default_height(200)
         .child(&vbox)
         .build();
 
     window.present();
+    // WARNING : Test
+
+    let (_globals, queue) = wl_wrap::get_globals_and_queue();
+    let qhandle = queue.handle();
+    // println!("{:?}", globals.contents());
+
+    let layer_shell = wl_wrap::jspencore().unwrap();
+    if let Some(surface) = window.surface() {
+        if let Ok(jsp) = surface.downcast::<WaylandSurface>() {
+            if let Some(wl) = jsp.wl_surface() {
+                let layer_surface = layer_shell.create_layer_surface(
+                    &qhandle,
+                    wl,
+                    Layer::Overlay,
+                    Some("org.gtk_rs.menu_gtk_1"),
+                    None,
+                );
+                layer_surface.set_exclusive_zone(-1);
+            }
+        };
+    }
+    // Fin des tests.
+
     println!("Window: {:?}", time.elapsed());
 
     let search = SearchEntry::new();
@@ -131,5 +169,6 @@ pub(crate) fn ui(app: &Application) {
     vbox.append(&scrolled_window);
     println!("Parsing and UI: {:?}", time.elapsed());
 
+    // NOTE: remove later
     // std::process::exit(1);
 }

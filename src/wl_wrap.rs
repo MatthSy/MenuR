@@ -87,7 +87,7 @@ pub(crate) fn get_globals() -> GlobalList {
     globals
 }
 
-pub(crate) fn jspencore(
+pub(crate) fn get_layershell(
 ) -> Result<LayerShell, smithay_client_toolkit::reexports::client::globals::BindError> {
     let (globals, queue) = get_globals_and_queue();
     let qhandle = queue.handle();

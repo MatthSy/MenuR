@@ -4,16 +4,17 @@ use crate::wl_wrap;
 use std::time::Instant;
 use std::{cell::RefCell, rc::Rc};
 
+use gdk4_wayland::WaylandSurface;
 use gdk4_wayland::prelude::WaylandSurfaceExtManual;
 use gdk4_wayland::prelude::*;
-use gdk4_wayland::WaylandSurface;
 use gtk4::{
-    glib::{self, clone},
-    prelude::*,
     Application, ApplicationWindow, FlowBox, FlowBoxChild, Image, Label, ListBox, ListBoxRow,
     ScrolledWindow, SearchEntry,
+    glib::{self, clone},
+    prelude::*,
 };
 
+use smithay_client_toolkit::reexports::protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1;
 // use smithay_client_toolkit::reexports::client::protocol::wl_display::WlDisplay;
 // use smithay_client_toolkit::reexports::client::protocol::{wl_display, GlobalManager};
 // use smithay_client_toolkit::reexports::protocols::wlr::layer_shell::v1::client::{
@@ -37,27 +38,29 @@ pub(crate) fn ui(app: &Application) {
         .build();
 
     window.present();
+
     // WARNING : Test
 
-    let (_globals, queue) = wl_wrap::get_globals_and_queue();
-    let qhandle = queue.handle();
-    // println!("{:?}", globals.contents());
+    window.connect_map(|window| {
+        let (_globals, queue) = wl_wrap::get_globals_and_queue();
+        let qhandle = queue.handle();
+        // println!("{:?}", globals.contents());
 
-    let layer_shell = wl_wrap::jspencore().unwrap();
-    if let Some(surface) = window.surface() {
-        if let Ok(jsp) = surface.downcast::<WaylandSurface>() {
-            if let Some(wl) = jsp.wl_surface() {
-                let layer_surface = layer_shell.create_layer_surface(
-                    &qhandle,
-                    wl,
-                    Layer::Overlay,
-                    Some("org.gtk_rs.menu_gtk_1"),
-                    None,
-                );
-                layer_surface.set_exclusive_zone(-1);
-            }
+        let layer_shell = wl_wrap::get_layershell().unwrap();
+        if let Some(surface) = window.surface()
+            && let Ok(wl_surface) = surface.downcast::<WaylandSurface>()
+            && let Some(wl) = wl_surface.wl_surface()
+        {
+            let layer_surface = layer_shell.create_layer_surface(
+                &qhandle,
+                wl,
+                Layer::Overlay,
+                Some("org.gtk_rs.menu_gtk_1"),
+                None,
+            );
+            layer_surface.set_exclusive_zone(-1);
         };
-    }
+    });
     // Fin des tests.
 
     println!("Window: {:?}", time.elapsed());

@@ -1,7 +1,6 @@
 mod entries;
 mod keywords;
 mod ui;
-mod wl_wrap;
 
 use ui::ui;
 

@@ -4,6 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-gdk4-wayland = { version = "0.10.1", features = ["wayland_crate"]}
 gtk4 = { version = "0.10.0", features = ["v4_18"] }
-smithay-client-toolkit = "0.20.0"
+gtk4-layer-shell = "0.6.3"

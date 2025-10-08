@@ -1,28 +1,16 @@
 use crate::entries::{fetch_entries_from_paths, fetch_entries_to_string};
 use crate::keywords::Keywords;
-use crate::wl_wrap;
 use std::time::Instant;
 use std::{cell::RefCell, rc::Rc};
 
-use gdk4_wayland::WaylandSurface;
-use gdk4_wayland::prelude::WaylandSurfaceExtManual;
-use gdk4_wayland::prelude::*;
 use gtk4::{
-    Application, ApplicationWindow, FlowBox, FlowBoxChild, Image, Label, ListBox, ListBoxRow,
-    ScrolledWindow, SearchEntry,
+    gdk::Key,
     glib::{self, clone},
     prelude::*,
+    Application, ApplicationWindow, EventControllerKey, FlowBox, FlowBoxChild, Image, Label,
+    ListBox, ListBoxRow, ScrolledWindow, SearchEntry,
 };
-
-use smithay_client_toolkit::reexports::protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1;
-// use smithay_client_toolkit::reexports::client::protocol::wl_display::WlDisplay;
-// use smithay_client_toolkit::reexports::client::protocol::{wl_display, GlobalManager};
-// use smithay_client_toolkit::reexports::protocols::wlr::layer_shell::v1::client::{
-//     zwlr_layer_shell_v1::ZwlrLayerShellV1, zwlr_layer_surface_v1::Layer,
-// };
-// use smithay_client_toolkit::reexports::client::{globals::GlobalList, Connection};
-// use smithay_client_toolkit::shell::wlr_layer::LayerSurface;
-use smithay_client_toolkit::shell::wlr_layer::Layer;
+use gtk4_layer_shell::{Layer, LayerShell};
 
 pub(crate) fn ui(app: &Application) {
     let time = Instant::now();
@@ -37,36 +25,17 @@ pub(crate) fn ui(app: &Application) {
         .child(&vbox)
         .build();
 
+    // Layeshell options :
+    window.init_layer_shell();
+    window.set_layer(Layer::Top);
+    window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::Exclusive);
+    window.grab_focus();
+
     window.present();
-
-    // WARNING : Test
-
-    window.connect_map(|window| {
-        let (_globals, queue) = wl_wrap::get_globals_and_queue();
-        let qhandle = queue.handle();
-        // println!("{:?}", globals.contents());
-
-        let layer_shell = wl_wrap::get_layershell().unwrap();
-        if let Some(surface) = window.surface()
-            && let Ok(wl_surface) = surface.downcast::<WaylandSurface>()
-            && let Some(wl) = wl_surface.wl_surface()
-        {
-            let layer_surface = layer_shell.create_layer_surface(
-                &qhandle,
-                wl,
-                Layer::Overlay,
-                Some("org.gtk_rs.menu_gtk_1"),
-                None,
-            );
-            layer_surface.set_exclusive_zone(-1);
-        };
-    });
-    // Fin des tests.
-
     println!("Window: {:?}", time.elapsed());
 
     let search = SearchEntry::new();
-    // Modify if filtering seams slow :
+    // Change tihs value if filtering seams slow :
     search.set_search_delay(10);
 
     let list_box = ListBox::new();
@@ -165,11 +134,37 @@ pub(crate) fn ui(app: &Application) {
         }
     ));
 
+    let make_controller = |app: &Application| {
+        let controller = EventControllerKey::new();
+        controller.connect_key_pressed(clone!(
+            #[weak]
+            app,
+            #[upgrade_or]
+            glib::Propagation::Proceed,
+            move |_ctrl, key, _, _| {
+                if key == Key::Escape {
+                    app.quit();
+                    std::process::exit(0);
+                }
+                glib::Propagation::Proceed
+            }
+        ));
+        controller
+    };
+
+    let controller_window = make_controller(app);
+    let controller_search = make_controller(app);
+
+    window.add_controller(controller_window);
+    search.add_controller(controller_search);
+
     let scrolled_window = ScrolledWindow::builder().child(&list_box).build();
     scrolled_window.set_vexpand(true);
 
     vbox.append(&search);
     vbox.append(&scrolled_window);
+    search.grab_focus();
+
     println!("Parsing and UI: {:?}", time.elapsed());
 
     // NOTE: remove later

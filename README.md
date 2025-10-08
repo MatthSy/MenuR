@@ -14,5 +14,3 @@
 - Change the selection mechanism
 - Make it prettier
 - Optimize CPU usage (currently horrible)
-- Change the app to GTK3 instead of GTK4 ?
-    Or see layer-shell

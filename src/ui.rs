@@ -1,14 +1,14 @@
 use crate::entries::{fetch_entries_from_paths, fetch_entries_to_string};
+use crate::keyboard::*;
 use crate::keywords::Keywords;
 use std::time::Instant;
 use std::{cell::RefCell, rc::Rc};
 
 use gtk4::{
-    gdk::Key,
     glib::{self, clone},
     prelude::*,
-    Application, ApplicationWindow, EventControllerKey, FlowBox, FlowBoxChild, Image, Label,
-    ListBox, ListBoxRow, ScrolledWindow, SearchEntry,
+    Application, ApplicationWindow, FlowBox, FlowBoxChild, Image, Label, ListBox, ListBoxRow,
+    ScrolledWindow, SearchEntry,
 };
 use gtk4_layer_shell::{Layer, LayerShell};
 
@@ -134,36 +134,26 @@ pub(crate) fn ui(app: &Application) {
         }
     ));
 
-    let make_controller = |app: &Application| {
-        let controller = EventControllerKey::new();
-        controller.connect_key_pressed(clone!(
-            #[weak]
-            app,
-            #[upgrade_or]
-            glib::Propagation::Proceed,
-            move |_ctrl, key, _, _| {
-                if key == Key::Escape {
-                    app.quit();
-                    std::process::exit(0);
-                }
-                glib::Propagation::Proceed
-            }
-        ));
-        controller
-    };
-
-    let controller_window = make_controller(app);
-    let controller_search = make_controller(app);
-
-    window.add_controller(controller_window);
-    search.add_controller(controller_search);
-
     let scrolled_window = ScrolledWindow::builder().child(&list_box).build();
     scrolled_window.set_vexpand(true);
 
     vbox.append(&search);
     vbox.append(&scrolled_window);
     search.grab_focus();
+
+    // This allows to press enter from the SearchEntry to start the first app in the list
+    search.connect_activate(clone!(
+        #[weak]
+        list_box,
+        move |_| {
+            select_first_visible_box_row_child(&list_box, true);
+        }
+    ));
+
+    let controller_window = make_window_controller(app);
+    let controller_search = make_search_controller(app, &list_box);
+    window.add_controller(controller_window);
+    search.add_controller(controller_search);
 
     println!("Parsing and UI: {:?}", time.elapsed());
 

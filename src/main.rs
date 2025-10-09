@@ -1,6 +1,7 @@
 mod entries;
 mod keywords;
 mod ui;
+mod keyboard;
 
 use ui::ui;
 
@@ -38,15 +39,4 @@ fn main() -> glib::ExitCode {
 
     eprintln!("Failed to re-exec: {:?}", err);
     std::process::exit(1);
-
-    // NOTE: Remove later:
-    //
-    // unsafe {
-    //     env::set_var("GSK_RENDERER", "cairo"); // force CPU renderer (Real impact on performance)
-    //     env::set_var("GDK_DISABLE", "gl"); // disable OpenGL (small impact)
-    // }
-    // let app = Application::builder().application_id(APP_ID).build();
-    // app.connect_activate(ui);
-    //
-    // return app.run();
 }

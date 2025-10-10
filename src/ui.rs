@@ -1,4 +1,4 @@
-use crate::entries::{fetch_entries_from_paths, fetch_entries_to_string};
+use crate::entries::{fetch_entries_from_paths, fetch_entries_to_string, Entry};
 use crate::keyboard::*;
 use crate::keywords::Keywords;
 use std::time::Instant;
@@ -42,7 +42,9 @@ pub(crate) fn ui(app: &Application) {
     list_box.set_activate_on_single_click(true);
 
     let entries = fetch_entries_from_paths(fetch_entries_to_string());
-    for entry in &entries {
+
+    // This iterates over entries while counting iterations in i.
+    for (i, entry) in (0_usize..).zip(entries.iter()) {
         let flow_box = FlowBox::new();
         let icon = Image::from_icon_name(&entry.img_path);
         let label = Label::new(Some(&entry.name));
@@ -61,6 +63,11 @@ pub(crate) fn ui(app: &Application) {
 
         let row = ListBoxRow::new();
         row.set_child(Some(&flow_box));
+
+        unsafe {
+            row.set_data("name", entry.name.to_owned());
+            row.set_data("num", i);
+        }
 
         let name = entry.name.to_owned();
         let path = entry.entry_path.to_owned();
@@ -85,6 +92,8 @@ pub(crate) fn ui(app: &Application) {
         matches,
         #[weak]
         search,
+        #[strong]
+        entries,
         #[upgrade_or]
         false,
         move |row| {
@@ -92,24 +101,12 @@ pub(crate) fn ui(app: &Application) {
                 return true;
             }
 
-            let Some(box_row_child) = row.child() else {
-                return true;
-            };
-            let Some(flow_box) = box_row_child.downcast_ref::<FlowBox>() else {
-                return true;
-            };
-            let Some(child) = flow_box.child_at_index(1) else {
-                return true;
-            };
-            let Some(temp_child) = child.child() else {
-                return true;
-            };
-            let Some(label) = temp_child.downcast_ref::<Label>() else {
-                return true;
-            };
-
-            let row_name = label.text().to_lowercase();
-            matches.borrow().iter().any(|m| m == &row_name)
+            let num = unsafe { *row.data::<usize>("num").unwrap().as_ref() };
+            let entry: &Entry = &entries[num];
+            matches
+                .borrow()
+                .iter()
+                .any(|m| m == &entry.name.to_lowercase())
         }
     ));
 
@@ -131,7 +128,7 @@ pub(crate) fn ui(app: &Application) {
                 .collect::<Vec<String>>();
             *matches.borrow_mut() = new_matches;
             list_box.invalidate_filter(); // re-run the filter function
-            select_first_visible_box_row_child(&list_box, false, false);
+            select_visible_row_child_at_index(&list_box, 0, false, false);
         }
     ));
 
@@ -147,18 +144,15 @@ pub(crate) fn ui(app: &Application) {
         #[weak]
         list_box,
         move |_| {
-            select_first_visible_box_row_child(&list_box, true, true);
+            select_visible_row_child_at_index(&list_box, 0, true, true);
         }
     ));
 
-    let controller_window = make_window_controller(app, &list_box);
+    let controller_window = make_window_controller(app, &list_box, &search);
     let controller_search = make_search_controller(app, &list_box);
-    window.add_controller(controller_window);
+    list_box.add_controller(controller_window);
     search.add_controller(controller_search);
-    select_first_visible_box_row_child(&list_box, false, false);
+    select_visible_row_child_at_index(&list_box, 0, false, false);
 
     println!("Parsing and UI: {:?}", time.elapsed());
-
-    // NOTE: remove later
-    // std::process::exit(1);
 }

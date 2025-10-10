@@ -131,6 +131,7 @@ pub(crate) fn ui(app: &Application) {
                 .collect::<Vec<String>>();
             *matches.borrow_mut() = new_matches;
             list_box.invalidate_filter(); // re-run the filter function
+            select_first_visible_box_row_child(&list_box, false, false);
         }
     ));
 
@@ -146,14 +147,15 @@ pub(crate) fn ui(app: &Application) {
         #[weak]
         list_box,
         move |_| {
-            select_first_visible_box_row_child(&list_box, true);
+            select_first_visible_box_row_child(&list_box, true, true);
         }
     ));
 
-    let controller_window = make_window_controller(app);
+    let controller_window = make_window_controller(app, &list_box);
     let controller_search = make_search_controller(app, &list_box);
     window.add_controller(controller_window);
     search.add_controller(controller_search);
+    select_first_visible_box_row_child(&list_box, false, false);
 
     println!("Parsing and UI: {:?}", time.elapsed());
 

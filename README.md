@@ -11,6 +11,5 @@
 
 ### More things to do :
 - Optimize entry fetching (cache ?)
-- Change the selection mechanism
 - Make it prettier
 - Optimize CPU usage (currently horrible)

@@ -1,7 +1,11 @@
-# Menu (I need to find a name)
-A Rust app launching menu, inspired by wofi
+# MenuR
+A Rust app launching menu, inspired by wofi\
+Current Status : Usable\
+This menu is made for Wayland on Linux, only with dispatchers implementing the Layershell protocol (such as Hyprland(The one I use, I haven't tested any other)).\
 \
-Current Status : Usable
+### Dependencies :
+- GTK4
+- Other things probably
 
 
 ### Features :

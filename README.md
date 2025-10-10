@@ -4,9 +4,15 @@ Current Status : Usable\
 This menu is made for Wayland on Linux, only with dispatchers implementing the Layershell protocol (such as Hyprland(The one I use, I haven't tested any other)).\
 \
 ### Dependencies :
+- Cargo
 - GTK4
 - Other things probably
 
+### Building :
+With Cargo : 
+```shell
+cargo build --release
+```
 
 ### Features :
 - Fetch desktop entries : OK

@@ -1,4 +1,5 @@
 use gtk4::glib::{self, clone};
+use gtk4::prelude::EditableExt;
 use gtk4::prelude::{ApplicationExt, Cast, WidgetExt};
 use gtk4::{gdk::Key, Application, EventControllerKey, ListBox};
 use gtk4::{ListBoxRow, SearchEntry, StateFlags};
@@ -30,7 +31,19 @@ pub(crate) fn make_window_controller(
                         return glib::Propagation::Stop;
                     }
                 }
-                _ => {}
+                _ => match key.to_unicode() {
+                    // When any letter is pressed, this passes it to the SearchEntry
+                    Some('A'..='Z') | Some('a'..='z') => {
+                        let binding = key.name().unwrap();
+                        let key_val: &str = binding.as_str();
+                        search.insert_text(key_val, &mut -1);
+                        search.grab_focus();
+                        let pos = search.text().len();
+                        search.set_position(pos as i32);
+                        return glib::Propagation::Proceed;
+                    }
+                    _ => {}
+                },
             }
             glib::Propagation::Proceed
         }

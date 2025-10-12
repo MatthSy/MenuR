@@ -50,15 +50,13 @@ pub(crate) struct Entry {
 impl Entry {
     // Parse Key words from the .desktop file, they are used as aliases to search for the apps
     pub(crate) fn parse_keywords(&mut self, input: &str) {
-        // Not really pretty to look at
-        // Basically concats with [self.key_words, new_key_words].concat()
         self.key_words.extend(
             input
                 .split([',', ' ', ';']) // Different separators that appear in the files i've seen
                 // filter map to filter out empty strings that appear
                 .filter(|word| !word.is_empty())
                 .map(|word| word.to_string()),
-        )
+        );
     }
 }
 
@@ -141,7 +139,7 @@ pub(crate) fn fetch_entry_from_bytes(input: Vec<u8>) -> Option<Entry> {
                 "Name" => output.name = val2.to_string(),
                 "Type" => output.r#type = val2.to_string(),
                 "Icon" => output.img_path = val2.to_string(),
-                "Comment" | "Categories" | "Description" | "Keywords" => {
+                "Comment" | "Categories" | "Description" | "Keywords" | "GenericName" => {
                     output.parse_keywords(val2)
                 }
                 _ => (),

@@ -14,6 +14,9 @@ impl Keywords {
 
         for entry in entries {
             let name = entry.name.clone().to_lowercase();
+            if name == "wireshark" {
+                println!("B : {:?}", &entry.key_words);
+            }
 
             // First : add entries' names as a keyword :
             if result.0.contains_key(&name) {
@@ -25,13 +28,12 @@ impl Keywords {
 
             // Then add actual keywords :
             for keyword in &entry.key_words {
+                let keyword = &keyword.clone().to_lowercase();
                 if result.0.contains_key(keyword.as_str()) {
                     // If keyword already exists
                     result.0.get_mut(keyword).unwrap().push(name.clone());
                 } else {
-                    result
-                        .0
-                        .insert(keyword.clone().to_lowercase(), vec![name.clone()]);
+                    result.0.insert(keyword.to_string(), vec![name.clone()]);
                 }
             }
         }

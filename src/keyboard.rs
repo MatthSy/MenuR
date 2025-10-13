@@ -1,3 +1,4 @@
+use gtk4::gdk::ModifierType;
 use gtk4::glib::{self, clone};
 use gtk4::prelude::EditableExt;
 use gtk4::prelude::{ApplicationExt, Cast, WidgetExt};
@@ -19,17 +20,29 @@ pub(crate) fn make_window_controller(
         search,
         #[upgrade_or]
         glib::Propagation::Proceed,
-        move |_ctrl, key, _, _| {
+        move |_ctrl, key, _, state| {
             match key {
                 Key::Escape => {
                     app.quit();
                     std::process::exit(0);
                 }
-                Key::Up | Key::BackSpace => {
+                Key::Up => {
                     if lb.selected_row() == get_visible_row_at_index(&lb, 0) {
                         search.grab_focus();
                         return glib::Propagation::Stop;
                     }
+                }
+                Key::BackSpace => {
+                    search.grab_focus();
+                    select_visible_row_child_at_index(&lb, 0, false, false);
+                    let pos = search.text().len() as i32;
+                    if state.contains(ModifierType::CONTROL_MASK) {
+                        search.delete_text(0, pos);
+                        return glib::Propagation::Stop;
+                    } else {
+                        search.delete_text(pos - 1, pos);
+                        return glib::Propagation::Proceed;
+                    };
                 }
                 _ => match key.to_unicode() {
                     // When any letter is pressed, this passes it to the SearchEntry
@@ -38,6 +51,7 @@ pub(crate) fn make_window_controller(
                         let key_val: &str = binding.as_str();
                         search.insert_text(key_val, &mut -1);
                         search.grab_focus();
+                        select_visible_row_child_at_index(&lb, 0, false, false);
                         let pos = search.text().len();
                         search.set_position(pos as i32);
                         return glib::Propagation::Proceed;

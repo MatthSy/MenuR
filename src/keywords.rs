@@ -14,9 +14,6 @@ impl Keywords {
 
         for entry in entries {
             let name = entry.name.clone().to_lowercase();
-            if name == "wireshark" {
-                println!("B : {:?}", &entry.key_words);
-            }
 
             // First : add entries' names as a keyword :
             if result.0.contains_key(&name) {

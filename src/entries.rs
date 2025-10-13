@@ -7,7 +7,6 @@
 use std::{env, fs, str};
 
 // Fetch .desktop entries in common directories
-#[allow(deprecated)] // Only for linux for now
 #[cfg(target_os = "linux")]
 pub(crate) fn fetch_entries_to_string() -> Vec<String> {
     let directories: Vec<String> = vec![

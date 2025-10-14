@@ -1,7 +1,12 @@
+// TODO: Remove later :
+#![allow(dead_code, unused)]
+// WARNING:
+
 mod entries;
 mod keywords;
 mod ui;
 mod keyboard;
+mod list_view;
 
 use ui::ui;
 

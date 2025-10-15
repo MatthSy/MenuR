@@ -9,23 +9,23 @@ use gtk4::{
     gio,
     glib::{self, clone},
     prelude::*,
-    Application, ApplicationWindow, FlowBox, FlowBoxChild, Image, Label, ListBox, ListBoxRow,
+    Application, ApplicationWindow, Box, FlowBox, FlowBoxChild, Image, Label, ListBox, ListBoxRow,
     ScrolledWindow, SearchEntry,
 };
-use gtk4::{ListView, SignalListItemFactory, SingleSelection};
+use gtk4::{CustomFilter, FilterListModel, ListView, SignalListItemFactory, SingleSelection};
 use gtk4_layer_shell::{Layer, LayerShell};
 
 pub(crate) fn ui(app: &Application) {
     let time = Instant::now();
 
     // Create the window at the beginning to gain some ms of delay
-    let vbox = gtk4::Box::new(gtk4::Orientation::Vertical, 5);
+    let hbox = gtk4::Box::new(gtk4::Orientation::Vertical, 5);
     let window = ApplicationWindow::builder()
         .application(app)
         .title("Menu")
         .default_width(400)
         .default_height(200)
-        .child(&vbox)
+        .child(&hbox)
         .build();
 
     // Layeshell options :
@@ -45,6 +45,10 @@ pub(crate) fn ui(app: &Application) {
     // Fetching the entries
     let entries = fetch_entries_from_paths(fetch_entries_to_string());
 
+    // Create the keywords
+    let keywords = Keywords::from(&entries);
+    let matches: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
+
     // Create the model to fill the listview :
     let values: Vec<IntegerObject> = (0..entries.len() as i32).map(IntegerObject::new).collect();
     let model = gio::ListStore::new::<IntegerObject>();
@@ -53,16 +57,18 @@ pub(crate) fn ui(app: &Application) {
     // Sets the rows as a flowbox of label and icon
     let factory = SignalListItemFactory::new();
     factory.connect_setup(|_, item| {
-        let flowbox = FlowBox::new();
+        let hbox = Box::new(gtk4::Orientation::Horizontal, 30);
+        hbox.set_height_request(32);
 
         let icon = Image::new();
+        icon.set_pixel_size(28);
         let label = Label::new(None);
-        flowbox.append(&icon);
-        flowbox.append(&label);
+        hbox.append(&icon);
+        hbox.append(&label);
 
         item.downcast_ref::<gtk4::ListItem>()
             .expect("Needs to be ListItem")
-            .set_child(Some(&flowbox));
+            .set_child(Some(&hbox));
     });
 
     factory.connect_bind(clone!(
@@ -74,26 +80,19 @@ pub(crate) fn ui(app: &Application) {
                 .expect("Needs to be ListItem");
 
             // Get `Flowbox` from `ListItem`
-            let flowbox = list_item
+            let hbox = list_item
                 .child()
-                .and_downcast::<FlowBox>()
+                .and_downcast::<Box>()
                 .expect("The child has to be a `Label`.");
 
             // Get image inside the flowbox
-            let binding0 = flowbox
-                .child_at_index(0)
-                .expect("no child where there should be");
-            let binding01 = binding0.child().expect("nothing inside flowboxchild");
-            let icon = binding01
+            let binding0 = hbox.first_child().expect("no child where there should be");
+            let icon = binding0
                 .downcast_ref::<Image>()
                 .expect("needs to be an image");
 
             // Get label inside the flowbox
-            let binding1 = flowbox
-                .child_at_index(1)
-                .expect("no child where there should be")
-                .child()
-                .expect("nothing inside flowboxchild");
+            let binding1 = hbox.last_child().expect("no child where there should be");
             let label = binding1
                 .downcast_ref::<Label>()
                 .expect("needs to be a label");
@@ -109,100 +108,58 @@ pub(crate) fn ui(app: &Application) {
         }
     ));
 
-    // // This iterates over entries while counting iterations in i.
-    // for (i, entry) in (0_usize..).zip(entries.iter()) {
-    //     let flow_box = FlowBox::new();
-    //     let icon = Image::from_icon_name(&entry.img_path);
-    //     let label = Label::new(Some(&entry.name));
-    //
-    //     // Allows to click on the name and the icon without selecting them but only selecting the
-    //     // line :
-    //     let icon_row = FlowBoxChild::new();
-    //     icon_row.set_child(Some(&icon));
-    //     icon_row.set_can_target(false);
-    //     let label_row = FlowBoxChild::new();
-    //     label_row.set_child(Some(&label));
-    //     label_row.set_can_target(false);
-    //
-    //     flow_box.append(&icon_row);
-    //     flow_box.append(&label_row);
-    //
-    //     let row = ListBoxRow::new();
-    //     row.set_child(Some(&flow_box));
-    //
-    //     unsafe {
-    //         row.set_data("name", entry.name.to_owned());
-    //         row.set_data("num", i);
-    //     }
-    //
-    //     let name = entry.name.to_owned();
-    //     let path = entry.entry_path.to_owned();
-    //     let app = app.clone();
-    //     row.connect_activate(move |_| {
-    //         println!("{:?}", name);
-    //         match std::process::Command::new("dex").arg(&path).spawn() {
-    //             Ok(_) => (),
-    //             Err(err) => println!("An error has occured : \n{err}"),
-    //         }
-    //         app.quit();
-    //     });
+    let filter = CustomFilter::new(clone!(
+        #[weak]
+        matches,
+        #[weak]
+        search,
+        #[strong]
+        entries,
+        #[upgrade_or]
+        false,
+        move |row| {
+            if search.text().is_empty() {
+                return true;
+            }
 
-    // list_box.append(&row);
-    // }
+            let num = unsafe { *row.data::<usize>("num").unwrap().as_ref() };
+            let entry: &Entry = &entries[num];
+            matches
+                .borrow()
+                .iter()
+                .any(|m| m == &entry.name.to_lowercase())
+        }
+    ));
 
-    let keywords = Keywords::from(&entries);
-    let matches: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
+    // Creation of the ListView from model and factory
+    let filter_model = FilterListModel::new(Some(model), Some(filter.clone()));
+    let selection_model = SingleSelection::new(Some(filter_model));
+    let list_view = ListView::new(Some(selection_model), Some(factory));
 
-    // list_box.set_filter_func(clone!(
-    //     #[weak]
-    //     matches,
-    //     #[weak]
-    //     search,
-    //     #[strong]
-    //     entries,
-    //     #[upgrade_or]
-    //     false,
-    //     move |row| {
-    //         if search.text().is_empty() {
-    //             return true;
-    //         }
-    //
-    //         let num = unsafe { *row.data::<usize>("num").unwrap().as_ref() };
-    //         let entry: &Entry = &entries[num];
-    //         matches
-    //             .borrow()
-    //             .iter()
-    //             .any(|m| m == &entry.name.to_lowercase())
-    //     }
-    // ));
-
-    // search.connect_search_changed(clone!(
-    //     #[weak]
-    //     list_box,
-    //     #[strong]
-    //     matches,
-    //     move |search| {
-    //         let text = search.text();
-    //         if text.is_empty() {
-    //             list_box.invalidate_filter(); // re-run the filter function
-    //             return;
-    //         }
-    //         let new_matches = keywords
-    //             .match_keywords(&text)
-    //             .iter()
-    //             .map(|s| s.to_string())
-    //             .collect::<Vec<String>>();
-    //         *matches.borrow_mut() = new_matches;
-    //         list_box.invalidate_filter(); // re-run the filter function
-    //         select_visible_row_child_at_index(&list_box, 0, false, false);
-    //     }
-    // ));
+    search.connect_search_changed(clone!(
+        #[strong]
+        filter,
+        #[strong]
+        matches,
+        move |search| {
+            let text = search.text();
+            if text.is_empty() {
+                filter.changed(gtk4::FilterChange::Different);
+                return;
+            }
+            let new_matches = keywords
+                .match_keywords(&text)
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<String>>();
+            *matches.borrow_mut() = new_matches;
+            filter.changed(gtk4::FilterChange::Different); // re-run the filter function
+                                                           // select_visible_row_child_at_index(&list_view, 0, false, false);
+        }
+    ));
 
     // let scrolled_window = ScrolledWindow::builder().child(&list_box).build();
     // scrolled_window.set_vexpand(true);
-
-    let selection_model = SingleSelection::new(Some(model));
-    let list_view = ListView::new(Some(selection_model), Some(factory));
 
     let scrolled_window = ScrolledWindow::builder()
         .child(&list_view)
@@ -213,8 +170,8 @@ pub(crate) fn ui(app: &Application) {
 
     scrolled_window.set_vexpand(true);
 
-    vbox.append(&search);
-    vbox.append(&scrolled_window);
+    hbox.append(&search);
+    hbox.append(&scrolled_window);
     search.grab_focus();
 
     // This allows to press enter from the SearchEntry to start the first app in the list

@@ -1,7 +1,8 @@
+use crate::activate::{activate_entry, select_item};
 use crate::entries::{fetch_entries_from_paths, fetch_entries_to_string, Entry};
-use crate::keyboard::*;
 use crate::keywords::Keywords;
 use crate::list_view::IntegerObject;
+use crate::{keyboard::*, list_view};
 use std::time::Instant;
 use std::{cell::RefCell, rc::Rc};
 
@@ -12,7 +13,9 @@ use gtk4::{
     Application, ApplicationWindow, Box, FlowBox, FlowBoxChild, Image, Label, ListBox, ListBoxRow,
     ScrolledWindow, SearchEntry,
 };
-use gtk4::{CustomFilter, FilterListModel, ListView, SignalListItemFactory, SingleSelection};
+use gtk4::{
+    CustomFilter, FilterListModel, ListView, SelectionModel, SignalListItemFactory, SingleSelection,
+};
 use gtk4_layer_shell::{Layer, LayerShell};
 
 pub(crate) fn ui(app: &Application) {
@@ -31,8 +34,7 @@ pub(crate) fn ui(app: &Application) {
     // Layeshell options :
     window.init_layer_shell();
     window.set_layer(Layer::Top);
-    // window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::Exclusive);
-    window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::OnDemand);
+    window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::Exclusive);
     window.grab_focus();
 
     window.present();
@@ -145,13 +147,28 @@ pub(crate) fn ui(app: &Application) {
     // Creation of the ListView from model and factory
     let filter_model = FilterListModel::new(Some(model), Some(filter.clone()));
     let selection_model = SingleSelection::new(Some(filter_model));
+    selection_model.connect_selected_item_notify(|model| {
+        dbg!(model.selected());
+    });
     let list_view = ListView::new(Some(selection_model), Some(factory));
+
+    list_view.connect_activate(clone!(
+        #[strong]
+        entries,
+        #[weak]
+        app,
+        move |list_view, pos| {
+            activate_entry(&app, &entries, list_view, pos);
+        }
+    ));
 
     search.connect_search_changed(clone!(
         #[strong]
         filter,
         #[strong]
         matches,
+        #[weak]
+        list_view,
         move |search| {
             let text = search.text();
             if text.is_empty() {
@@ -165,7 +182,17 @@ pub(crate) fn ui(app: &Application) {
                 .collect::<Vec<String>>();
             *matches.borrow_mut() = new_matches;
             filter.changed(gtk4::FilterChange::Different); // re-run the filter function
-                                                           // select_visible_row_child_at_index(&list_view, 0, false, false);
+
+            // This focus and select the first visible item once the filter is completed
+            // (Actually it runs once the main loop is idle but it should be once filter is
+            // completed)
+            glib::idle_add_local_once(clone!(
+                #[weak]
+                list_view,
+                move || {
+                    select_item(&list_view, false);
+                }
+            ));
         }
     ));
 
@@ -186,19 +213,22 @@ pub(crate) fn ui(app: &Application) {
     search.grab_focus();
 
     // This allows to press enter from the SearchEntry to start the first app in the list
-    // search.connect_activate(clone!(
-    //     #[weak]
-    //     list_box,
-    //     move |_| {
-    //         select_visible_row_child_at_index(&list_box, 0, true, true);
-    //     }
-    // ));
+    search.connect_activate(clone!(
+        #[weak]
+        list_view,
+        #[weak]
+        app,
+        #[strong]
+        entries,
+        move |_| {
+            activate_entry(&app, &entries, &list_view, 0);
+        }
+    ));
 
-    // let controller_window = make_window_controller(app, &list_box, &search);
-    // let controller_search = make_search_controller(app, &list_box);
-    // list_box.add_controller(controller_window);
-    // search.add_controller(controller_search);
-    // select_visible_row_child_at_index(&list_box, 0, false, false);
+    let controller_window = make_window_controller(app, &list_view, &search);
+    let controller_search = make_search_controller(app, &list_view);
+    list_view.add_controller(controller_window);
+    search.add_controller(controller_search);
 
     println!("Parsing and UI: {:?}", time.elapsed());
     // std::thread::sleep(std::time::Duration::from_secs(2));

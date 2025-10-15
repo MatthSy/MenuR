@@ -2,19 +2,21 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use gtk4::gdk::ModifierType;
-use gtk4::glib::object::ObjectExt;
+use gtk4::gio::prelude::ListModelExt;
+use gtk4::glib::object::{CastNone, ObjectExt};
 use gtk4::glib::{self, clone};
-use gtk4::prelude::EditableExt;
 use gtk4::prelude::{ApplicationExt, Cast, WidgetExt};
+use gtk4::prelude::{EditableExt, SelectionModelExt};
 use gtk4::{gdk::Key, Application, EventControllerKey, ListBox};
-use gtk4::{Box, ListBoxRow, SearchEntry, StateFlags};
+use gtk4::{Box, ListBoxRow, ScrolledWindow, SearchEntry, SelectionModel, StateFlags, Widget};
 
 use gtk4::{CustomFilter, FilterListModel, ListView, SignalListItemFactory, SingleSelection};
 
+use crate::activate::select_item;
 use crate::entries::Entry;
 use crate::list_view::IntegerObject;
 
-fn get_selected(lv: &ListView, entries: &Vec<Entry>) -> Option<Entry> {
+fn get_selected_id(lv: &ListView) -> i32 {
     let selection = lv
         .model()
         .unwrap()
@@ -25,9 +27,9 @@ fn get_selected(lv: &ListView, entries: &Vec<Entry>) -> Option<Entry> {
         .map(|val| val.downcast::<IntegerObject>().expect("Should be a box"));
 
     if let Some(id) = selected {
-        Some(entries[id.number() as usize].clone())
+        id.number()
     } else {
-        None
+        -2
     }
 }
 
@@ -35,7 +37,6 @@ pub(crate) fn make_window_controller(
     app: &Application,
     lv: &ListView,
     search: &SearchEntry,
-    entries: &Vec<Entry>,
 ) -> EventControllerKey {
     let controller = EventControllerKey::new();
     controller.connect_key_pressed(clone!(
@@ -45,12 +46,10 @@ pub(crate) fn make_window_controller(
         lv,
         #[weak]
         search,
-        #[strong]
-        entries,
         #[upgrade_or]
         glib::Propagation::Proceed,
         move |_ctrl, key, _, state| {
-            let sel_entry = get_selected(&lv, &entries);
+            let sel_entry_id = get_selected_id(&lv);
             match key {
                 Key::Escape => {
                     app.quit();
@@ -58,32 +57,28 @@ pub(crate) fn make_window_controller(
                 }
                 Key::Up => {
                     let first_child = if let Some(tmp) = lv.first_child() {
-                        if let Ok(child) = tmp.downcast::<Box>() {
-                            Some(child)
-                        } else {
-                            None
-                        }
+                        tmp.downcast::<Box>().ok()
                     } else {
                         None
                     };
                     let first_child_id = if let Some(first_child) = first_child {
                         unsafe {
-                            first_child
+                            *first_child
                                 .data::<i32>("num")
-                                .unwrap_or("There should be a num data")
-                                .
+                                .expect("There should be a num data")
+                                .as_ref()
                         }
                     } else {
                         -1
                     };
-                    if sel_entry == first_child {
+                    if sel_entry_id == first_child_id {
                         search.grab_focus();
                         return glib::Propagation::Stop;
                     }
                 }
                 Key::BackSpace => {
                     search.grab_focus();
-                    select_visible_row_child_at_index(&lv, 0, false, false);
+                    // select_visible_row_child_at_index(&lv, 0, false, false, matches);
                     let pos = search.text().len() as i32;
                     if state.contains(ModifierType::CONTROL_MASK) {
                         search.delete_text(0, pos);
@@ -100,7 +95,7 @@ pub(crate) fn make_window_controller(
                         let key_val: &str = binding.as_str();
                         search.insert_text(key_val, &mut -1);
                         search.grab_focus();
-                        select_visible_row_child_at_index(&lv, 0, false, false);
+                        select_item(&lv, false);
                         let pos = search.text().len();
                         search.set_position(pos as i32);
                         return glib::Propagation::Proceed;
@@ -114,82 +109,34 @@ pub(crate) fn make_window_controller(
     controller
 }
 
-// pub(crate) fn make_search_controller(app: &Application, lb: &ListBox) -> EventControllerKey {
-//     let controller = EventControllerKey::new();
-//     controller.connect_key_pressed(clone!(
-//         #[weak]
-//         app,
-//         #[weak]
-//         lb,
-//         #[upgrade_or]
-//         glib::Propagation::Proceed,
-//         move |_ctrl, key, _, _| {
-//             match key {
-//                 Key::Escape => {
-//                     app.quit();
-//                     std::process::exit(0);
-//                 }
-//                 Key::Return | Key::KP_Enter | Key::ISO_Enter => {
-//                     select_visible_row_child_at_index(&lb, 0, true, true);
-//                 }
-//                 Key::Down => {
-//                     select_visible_row_child_at_index(&lb, 1, true, false);
-//                 }
-//                 _ => {}
-//             }
-//             glib::Propagation::Proceed
-//         }
-//     ));
-//     controller
-// }
-
-pub(crate) fn select_visible_row_child_at_index(
-    lv: &ListView,
-    i: usize,
-    focus: bool,
-    activate: bool,
-) -> glib::Propagation {
-    if let Some(dc) = get_visible_row_at_index(lv, i) {
-        if focus {
-            dc.grab_focus();
+pub(crate) fn make_search_controller(app: &Application, lv: &ListView) -> EventControllerKey {
+    let controller = EventControllerKey::new();
+    controller.connect_key_pressed(clone!(
+        #[weak]
+        app,
+        #[weak]
+        lv,
+        #[upgrade_or]
+        glib::Propagation::Proceed,
+        move |_ctrl, key, _, _| {
+            match key {
+                Key::Escape => {
+                    app.quit();
+                    std::process::exit(0);
+                }
+                Key::Return | Key::KP_Enter | Key::ISO_Enter => {
+                    if let Some(child) = lv.first_child() {
+                        child.activate();
+                    }
+                }
+                Key::Down => {
+                    select_item(&lv, true);
+                    return glib::Propagation::Stop;
+                }
+                _ => {}
+            }
+            glib::Propagation::Proceed
         }
-        dc.set_state_flags(StateFlags::SELECTED, false);
-        // lv.select_row(Some(&dc));
-
-        if activate {
-            dc.activate();
-        }
-    }
-    glib::Propagation::Stop
-}
-
-pub(crate) fn get_visible_row_at_index(
-    lv: &ListView,
-    index: usize,
-    matches: Rc<RefCell<Vec<String>>>,
-) -> Option<Box> {
-    let mut i: i32 = 0;
-    let mut count: usize = 0;
-    // while let Some(child) = lv.row_at_index(i) {
-    //     // For security
-    //     if i > 1000 {
-    //         break;
-    //     }
-    //     i += 1;
-    //     let dc = child.downcast_ref::<ListBoxRow>();
-    //     if dc.is_none() {
-    //         eprintln!(
-    //             "Could not downcast to ListBoxRow (keyboard.rs, get_visible_row_at_index function), iteration {i}"
-    //         );
-    //         continue;
-    //     }
-    //     let dc = dc.unwrap();
-    //     if dc.is_visible() && dc.is_mapped() {
-    //         if index == count {
-    //             return Some(dc.clone());
-    //         }
-    //         count += 1;
-    //     }
-    // }
-    None
+    ));
+    controller
 }

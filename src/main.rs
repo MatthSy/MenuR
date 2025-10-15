@@ -7,6 +7,7 @@ mod keywords;
 mod ui;
 mod keyboard;
 mod list_view;
+mod activate;
 
 use ui::ui;
 

@@ -101,10 +101,17 @@ pub(crate) fn ui(app: &Application) {
             let binding2 = list_item.item().expect("There should be an item");
             let entry_id = binding2
                 .downcast_ref::<IntegerObject>()
-                .expect("Should be an IntegerObject");
+                .expect("Should be an IntegerObject")
+                .number() as usize;
+            let entry = &entries[entry_id];
 
-            icon.set_icon_name(Some(&entries[entry_id.number() as usize].img_path));
-            label.set_label(&entries[entry_id.number() as usize].name);
+            icon.set_icon_name(Some(&entry.img_path));
+            label.set_label(&entry.name);
+
+            unsafe {
+                hbox.set_data("name", entry.name.to_owned());
+                hbox.set_data("num", entry_id);
+            }
         }
     ));
 
@@ -117,13 +124,17 @@ pub(crate) fn ui(app: &Application) {
         entries,
         #[upgrade_or]
         false,
-        move |row| {
+        move |hbox| {
             if search.text().is_empty() {
                 return true;
             }
 
-            let num = unsafe { *row.data::<usize>("num").unwrap().as_ref() };
-            let entry: &Entry = &entries[num];
+            let entry_id = hbox
+                .downcast_ref::<IntegerObject>()
+                .expect("Should be an IntegerObject")
+                .number() as usize;
+            let entry: &Entry = &entries[entry_id];
+
             matches
                 .borrow()
                 .iter()

@@ -2,7 +2,7 @@
 A Rust app launching menu, inspired by wofi\
 Current Status : Usable\
 This menu is made for Wayland on Linux, only with dispatchers implementing the Layershell protocol (such as Hyprland(The one I use, I haven't tested any other)).\
-\
+
 ### Dependencies :
 - Cargo
 - GTK4
@@ -21,6 +21,7 @@ cargo build --release
 - Browse trough entries : OK
 - Search bar : OK
 - start the selected app : OK
+- Add shell command execute through the menu
 - Sorting entries : TODO
     - sorting on names : TODO
     - Sorting on cache : TODO

@@ -225,12 +225,13 @@ pub(crate) fn ui(app: &Application) {
         }
     ));
 
-    let controller_window = make_window_controller(app, &list_view, &search);
+    let controller_listview = make_listview_controller(app, &list_view, &search);
     let controller_search = make_search_controller(app, &list_view);
-    list_view.add_controller(controller_window);
+    let controller_window = make_window_controller(app, &search);
+    list_view.add_controller(controller_listview);
     search.add_controller(controller_search);
+    window.add_controller(controller_window);
 
     println!("Parsing and UI: {:?}", time.elapsed());
-    // std::thread::sleep(std::time::Duration::from_secs(2));
     // std::process::exit(0)
 }

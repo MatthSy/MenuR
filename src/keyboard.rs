@@ -16,24 +16,7 @@ use crate::activate::select_item;
 use crate::entries::Entry;
 use crate::list_view::IntegerObject;
 
-fn get_selected_id(lv: &ListView) -> i32 {
-    let selection = lv
-        .model()
-        .unwrap()
-        .downcast::<gtk4::SingleSelection>()
-        .unwrap();
-    let selected: Option<IntegerObject> = selection
-        .selected_item()
-        .map(|val| val.downcast::<IntegerObject>().expect("Should be a box"));
-
-    if let Some(id) = selected {
-        id.number()
-    } else {
-        -2
-    }
-}
-
-pub(crate) fn make_window_controller(
+pub(crate) fn make_listview_controller(
     app: &Application,
     lv: &ListView,
     search: &SearchEntry,
@@ -49,44 +32,38 @@ pub(crate) fn make_window_controller(
         #[upgrade_or]
         glib::Propagation::Proceed,
         move |_ctrl, key, _, state| {
-            let sel_entry_id = get_selected_id(&lv);
             match key {
                 Key::Escape => {
                     app.quit();
                     std::process::exit(0);
                 }
                 Key::Up => {
-                    let first_child = if let Some(tmp) = lv.first_child() {
-                        tmp.downcast::<Box>().ok()
-                    } else {
-                        None
+                    let model = lv
+                        .model()
+                        .expect("There should be a model")
+                        .downcast::<gtk4::SingleSelection>()
+                        .expect("Could not downcast to SingleSelectin model");
+
+                    let Some(first_in_list) = model.item(0) else {
+                        return glib::Propagation::Stop;
                     };
-                    let first_child_id = if let Some(first_child) = first_child {
-                        unsafe {
-                            *first_child
-                                .data::<i32>("num")
-                                .expect("There should be a num data")
-                                .as_ref()
-                        }
-                    } else {
-                        -1
+                    let Some(selected) = model.selected_item() else {
+                        return glib::Propagation::Stop;
                     };
-                    if sel_entry_id == first_child_id {
+                    if selected == first_in_list {
                         search.grab_focus();
                         return glib::Propagation::Stop;
                     }
                 }
                 Key::BackSpace => {
                     search.grab_focus();
-                    // select_visible_row_child_at_index(&lv, 0, false, false, matches);
                     let pos = search.text().len() as i32;
                     if state.contains(ModifierType::CONTROL_MASK) {
                         search.delete_text(0, pos);
-                        return glib::Propagation::Stop;
                     } else {
                         search.delete_text(pos - 1, pos);
-                        return glib::Propagation::Proceed;
                     };
+                    return glib::Propagation::Stop;
                 }
                 _ => match key.to_unicode() {
                     // When any letter is pressed, this passes it to the SearchEntry
@@ -138,5 +115,35 @@ pub(crate) fn make_search_controller(app: &Application, lv: &ListView) -> EventC
             glib::Propagation::Proceed
         }
     ));
+    controller
+}
+
+pub(crate) fn make_window_controller(
+    app: &Application,
+    search: &SearchEntry,
+) -> EventControllerKey {
+    let controller = EventControllerKey::new();
+    controller.connect_key_pressed(clone!(
+        #[weak]
+        app,
+        #[weak]
+        search,
+        #[upgrade_or]
+        glib::Propagation::Proceed,
+        move |_, key, _, state| {
+            if key == Key::BackSpace {
+                search.grab_focus();
+                let pos = search.text().len() as i32;
+                if state.contains(ModifierType::CONTROL_MASK) {
+                    search.delete_text(0, pos);
+                } else {
+                    search.delete_text(pos - 1, pos);
+                };
+                return glib::Propagation::Stop;
+            }
+            return glib::Propagation::Proceed;
+        }
+    ));
+
     controller
 }

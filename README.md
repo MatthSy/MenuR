@@ -21,7 +21,7 @@ cargo build --release
 - Browse trough entries : OK
 - Search bar : OK
 - start the selected app : OK
-- Add shell command execute through the menu
+- Add shell command execute through the menu: TODO
 - Sorting entries : TODO
     - sorting on names : TODO
     - Sorting on cache : TODO
@@ -30,6 +30,7 @@ cargo build --release
 - Add Theming and CSS : TODO
 
 ### More things to do :
+- Clean the code
 - Optimize entry fetching (cache ?)
 - Make it prettier
-- Optimize CPU usage (currently horrible)
+- Optimize CPU usage (currently not too bad anymore)

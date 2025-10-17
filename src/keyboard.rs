@@ -1,20 +1,10 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use gtk4::gdk::ModifierType;
 use gtk4::gio::prelude::ListModelExt;
-use gtk4::glib::object::{CastNone, ObjectExt};
 use gtk4::glib::{self, clone};
-use gtk4::prelude::{ApplicationExt, Cast, WidgetExt};
-use gtk4::prelude::{EditableExt, SelectionModelExt};
-use gtk4::{gdk::Key, Application, EventControllerKey, ListBox};
-use gtk4::{Box, ListBoxRow, ScrolledWindow, SearchEntry, SelectionModel, StateFlags, Widget};
-
-use gtk4::{CustomFilter, FilterListModel, ListView, SignalListItemFactory, SingleSelection};
+use gtk4::prelude::{ApplicationExt, Cast, EditableExt, WidgetExt};
+use gtk4::{gdk::Key, Application, EventControllerKey, ListView, SearchEntry};
 
 use crate::activate::select_item;
-use crate::entries::Entry;
-use crate::list_view::IntegerObject;
 
 pub(crate) fn make_listview_controller(
     app: &Application,
@@ -119,13 +109,13 @@ pub(crate) fn make_search_controller(app: &Application, lv: &ListView) -> EventC
 }
 
 pub(crate) fn make_window_controller(
-    app: &Application,
+    _app: &Application,
     search: &SearchEntry,
 ) -> EventControllerKey {
     let controller = EventControllerKey::new();
     controller.connect_key_pressed(clone!(
         #[weak]
-        app,
+        _app,
         #[weak]
         search,
         #[upgrade_or]

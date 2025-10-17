@@ -1,8 +1,8 @@
 use crate::activate::{activate_entry, select_item};
 use crate::entries::{fetch_entries_from_paths, fetch_entries_to_string, Entry};
+use crate::keyboard::*;
 use crate::keywords::Keywords;
 use crate::list_view::IntegerObject;
-use crate::{keyboard::*, list_view};
 use std::time::Instant;
 use std::{cell::RefCell, rc::Rc};
 
@@ -10,12 +10,9 @@ use gtk4::{
     gio,
     glib::{self, clone},
     prelude::*,
-    Application, ApplicationWindow, Box, FlowBox, FlowBoxChild, Image, Label, ListBox, ListBoxRow,
-    ScrolledWindow, SearchEntry,
+    Application, ApplicationWindow, Box, Image, Label, ScrolledWindow, SearchEntry,
 };
-use gtk4::{
-    CustomFilter, FilterListModel, ListView, SelectionModel, SignalListItemFactory, SingleSelection,
-};
+use gtk4::{CustomFilter, FilterListModel, ListView, SignalListItemFactory, SingleSelection};
 use gtk4_layer_shell::{Layer, LayerShell};
 
 pub(crate) fn ui(app: &Application) {

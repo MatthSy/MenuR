@@ -1,6 +1,6 @@
 use gtk4::prelude::Cast;
+use gtk4::prelude::SelectionModelExt;
 use gtk4::prelude::WidgetExt;
-use gtk4::prelude::{EditableExt, SelectionModelExt};
 use gtk4::{
     Application, ListView, SingleSelection,
     gio::prelude::{ApplicationExt, ListModelExt},

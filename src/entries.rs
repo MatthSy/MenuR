@@ -17,7 +17,6 @@ pub(crate) fn fetch_entries_to_string() -> Vec<String> {
 
     let mut entries: Vec<String> = vec![];
 
-    // Add every entries to a vector to fetch them after, not the most efficient but seems clear
     for dir in directories.iter() {
         if let Ok(read_dir) = fs::read_dir(dir) {
             for entry in read_dir {
@@ -60,7 +59,7 @@ impl Entry {
 }
 
 // Takes a vector of paths (as Strings) and fetch them 1 by 1, returning a vector of Entries
-pub(crate) fn fetch_entries_from_paths(paths: Vec<String>) -> Vec<Entry> {
+pub(crate) fn _fetch_entries_from_paths(paths: Vec<String>) -> Vec<Entry> {
     // Get current desktop environment to filter out unneeded entries
     let desktop_env = env::var("XDG_CURRENT_DESKTOP");
 

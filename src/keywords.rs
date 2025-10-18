@@ -1,7 +1,7 @@
 use crate::entries::Entry;
 use std::collections::{hash_map, HashMap};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Keywords(hash_map::HashMap<String, Vec<String>>);
 
 impl Keywords {
@@ -9,32 +9,36 @@ impl Keywords {
         Keywords(HashMap::default())
     }
 
-    pub(crate) fn from(entries: &[Entry]) -> Self {
+    pub(crate) fn _from(entries: &[Entry]) -> Self {
         let mut result = Self::new();
 
         for entry in entries {
-            let name = entry.name.clone().to_lowercase();
-
-            // First : add entries' names as a keyword :
-            if result.0.contains_key(&name) {
-                // If keyword already exists
-                result.0.get_mut(&name).unwrap().push(name.clone());
-            } else {
-                result.0.insert(name.clone(), vec![name.clone()]);
-            }
-
-            // Then add actual keywords :
-            for keyword in &entry.key_words {
-                let keyword = &keyword.clone().to_lowercase();
-                if result.0.contains_key(keyword.as_str()) {
-                    // If keyword already exists
-                    result.0.get_mut(keyword).unwrap().push(name.clone());
-                } else {
-                    result.0.insert(keyword.to_string(), vec![name.clone()]);
-                }
-            }
+            result.gen_keywords_for_entry(entry);
         }
         result
+    }
+
+    pub(crate) fn gen_keywords_for_entry(&mut self, entry: &Entry) {
+        let name = entry.name.clone().to_lowercase();
+
+        // First : add entries' names as a keyword :
+        if self.0.contains_key(&name) {
+            // If keyword already exists
+            self.0.get_mut(&name).unwrap().push(name.clone());
+        } else {
+            self.0.insert(name.clone(), vec![name.clone()]);
+        }
+
+        // Then add actual keywords :
+        for keyword in &entry.key_words {
+            let keyword = &keyword.clone().to_lowercase();
+            if self.0.contains_key(keyword.as_str()) {
+                // If keyword already exists
+                self.0.get_mut(keyword).unwrap().push(name.clone());
+            } else {
+                self.0.insert(keyword.to_string(), vec![name.clone()]);
+            }
+        }
     }
 
     pub(crate) fn match_keywords(&self, search: &str) -> Vec<&str> {

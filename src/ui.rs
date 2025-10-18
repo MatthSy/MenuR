@@ -1,5 +1,5 @@
 use crate::activate::{activate_entry, select_item};
-use crate::entries::{fetch_entries_from_paths, fetch_entries_to_string, Entry};
+use crate::entries::{fetch_entries_to_string, fetch_entry_from_path, Entry};
 use crate::keyboard::*;
 use crate::keywords::Keywords;
 use crate::list_view::IntegerObject;
@@ -42,16 +42,41 @@ pub(crate) fn ui(app: &Application) {
     search.set_search_delay(10);
 
     // Fetching the entries
-    let entries = fetch_entries_from_paths(fetch_entries_to_string());
-
-    // Create the keywords
-    let keywords = Keywords::from(&entries);
-    let matches: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
+    let entries_paths = fetch_entries_to_string();
+    let entries = Rc::new(RefCell::new(vec![]));
+    let keywords = Rc::new(RefCell::new(Keywords::new()));
 
     // Create the model to fill the listview :
-    let values: Vec<IntegerObject> = (0..entries.len() as i32).map(IntegerObject::new).collect();
+    let values: Vec<IntegerObject> = vec![];
     let model = gio::ListStore::new::<IntegerObject>();
     model.extend_from_slice(&values);
+
+    for (i, entry_path) in entries_paths.into_iter().enumerate() {
+        glib::idle_add_local(clone!(
+            #[strong]
+            entry_path,
+            #[strong]
+            model,
+            #[strong]
+            i,
+            #[strong]
+            entries,
+            #[strong]
+            keywords,
+            move || {
+                if let Some(entry) = fetch_entry_from_path(entry_path.clone()) {
+                    keywords.borrow_mut().gen_keywords_for_entry(&entry);
+                    entries.borrow_mut().push(entry);
+                    model.append(&IntegerObject::new(i as i32));
+                }
+
+                glib::ControlFlow::Break
+            }
+        ));
+    }
+
+    // Create the matches
+    let matches: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
 
     // Sets the rows as a flowbox of label and icon
     let factory = SignalListItemFactory::new();
@@ -102,15 +127,15 @@ pub(crate) fn ui(app: &Application) {
                 .downcast_ref::<IntegerObject>()
                 .expect("Should be an IntegerObject")
                 .number() as usize;
-            let entry = &entries[entry_id];
-
-            icon.set_icon_name(Some(&entry.img_path));
-            label.set_label(&entry.name);
-
-            unsafe {
-                hbox.set_data("name", entry.name.to_owned());
-                hbox.set_data("num", entry_id);
-            }
+            // let entry = &entries.borrow()[entry_id];
+            //
+            // icon.set_icon_name(Some(&entry.img_path));
+            // label.set_label(&entry.name);
+            //
+            // unsafe {
+            //     hbox.set_data("name", entry.name.to_owned());
+            //     hbox.set_data("num", entry_id);
+            // }
         }
     ));
 
@@ -132,7 +157,7 @@ pub(crate) fn ui(app: &Application) {
                 .downcast_ref::<IntegerObject>()
                 .expect("Should be an IntegerObject")
                 .number() as usize;
-            let entry: &Entry = &entries[entry_id];
+            let entry: &Entry = &entries.borrow()[entry_id];
 
             matches
                 .borrow()
@@ -155,7 +180,7 @@ pub(crate) fn ui(app: &Application) {
         #[weak]
         app,
         move |list_view, pos| {
-            activate_entry(&app, &entries, list_view, pos);
+            activate_entry(&app, &entries.borrow(), list_view, pos);
         }
     ));
 
@@ -173,6 +198,7 @@ pub(crate) fn ui(app: &Application) {
                 return;
             }
             let new_matches = keywords
+                .borrow()
                 .match_keywords(&text)
                 .iter()
                 .map(|s| s.to_string())
@@ -218,7 +244,7 @@ pub(crate) fn ui(app: &Application) {
         #[strong]
         entries,
         move |_| {
-            activate_entry(&app, &entries, &list_view, 0);
+            activate_entry(&app, &entries.borrow(), &list_view, 0);
         }
     ));
 
@@ -231,4 +257,6 @@ pub(crate) fn ui(app: &Application) {
 
     println!("Parsing and UI: {:?}", time.elapsed());
     // std::process::exit(0)
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    dbg!(entries);
 }

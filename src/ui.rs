@@ -52,27 +52,31 @@ pub(crate) fn ui(app: &Application) {
     model.extend_from_slice(&values);
 
     for (i, entry_path) in entries_paths.into_iter().enumerate() {
-        glib::idle_add_local(clone!(
-            #[strong]
-            entry_path,
-            #[strong]
-            model,
-            #[strong]
-            i,
-            #[strong]
-            entries,
-            #[strong]
-            keywords,
-            move || {
-                if let Some(entry) = fetch_entry_from_path(entry_path.clone()) {
-                    keywords.borrow_mut().gen_keywords_for_entry(&entry);
-                    entries.borrow_mut().push(entry);
-                    model.append(&IntegerObject::new(i as i32));
-                }
+        glib::idle_add_local_full(
+            glib::Priority::HIGH,
+            clone!(
+                #[strong]
+                entry_path,
+                #[strong]
+                model,
+                #[strong]
+                i,
+                #[strong]
+                entries,
+                #[strong]
+                keywords,
+                move || {
+                    if let Some(entry) = fetch_entry_from_path(entry_path.clone()) {
+                        keywords.borrow_mut().gen_keywords_for_entry(&entry);
+                        print!("{}, ", &entry.name);
+                        entries.borrow_mut().push(entry);
+                        model.append(&IntegerObject::new(i as i32));
+                    }
 
-                glib::ControlFlow::Break
-            }
-        ));
+                    glib::ControlFlow::Break
+                }
+            ),
+        );
     }
 
     // Create the matches
@@ -127,6 +131,11 @@ pub(crate) fn ui(app: &Application) {
                 .downcast_ref::<IntegerObject>()
                 .expect("Should be an IntegerObject")
                 .number() as usize;
+            if entry_id == 5 {
+                println!("AAAAAAAAAAAAAA = {:?}", &entries);
+            }
+            // WARNING: JSP pq les entries disparaissent entre temps jsuis perdu frero
+
             // let entry = &entries.borrow()[entry_id];
             //
             // icon.set_icon_name(Some(&entry.img_path));
@@ -258,5 +267,9 @@ pub(crate) fn ui(app: &Application) {
     println!("Parsing and UI: {:?}", time.elapsed());
     // std::process::exit(0)
     std::thread::sleep(std::time::Duration::from_secs(1));
-    dbg!(entries);
+    println!(
+        "\n\n\n\n\n\n\n\nBBBBBBBBBBBBBBBBBB = {}\n\n\n{:?}",
+        entries.clone().borrow().len(),
+        entries
+    );
 }

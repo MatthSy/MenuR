@@ -4,6 +4,7 @@ mod ui;
 mod keyboard;
 mod list_view;
 mod activate;
+mod cache;
 
 use ui::ui;
 

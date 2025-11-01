@@ -1,4 +1,5 @@
 use crate::activate::{activate_entry, select_item};
+use crate::cache::{put_to_cache, read_from_cache};
 use crate::entries::{fetch_entries_from_paths, fetch_entries_to_string, Entry};
 use crate::keyboard::*;
 use crate::keywords::Keywords;
@@ -42,7 +43,22 @@ pub(crate) fn ui(app: &Application) {
     search.set_search_delay(10);
 
     // Fetching the entries
-    let entries = fetch_entries_from_paths(fetch_entries_to_string());
+    // Tries to read from cache and if fails then parse the normal way
+    let entries = if let Some(tmp) = read_from_cache() {
+        println!("Cache file found, loading entry list from cache...");
+        std::thread::spawn(move || {
+            put_to_cache(fetch_entries_from_paths(fetch_entries_to_string())).unwrap();
+        });
+        tmp
+    } else {
+        println!("Cache file not found, parsing entry list...");
+        let res = fetch_entries_from_paths(fetch_entries_to_string());
+        let res_clone = res.clone();
+        std::thread::spawn(move || {
+            put_to_cache(res_clone).unwrap();
+        });
+        res
+    };
 
     // Create the keywords
     let keywords = Keywords::from(&entries);
@@ -144,9 +160,7 @@ pub(crate) fn ui(app: &Application) {
     // Creation of the ListView from model and factory
     let filter_model = FilterListModel::new(Some(model), Some(filter.clone()));
     let selection_model = SingleSelection::new(Some(filter_model));
-    selection_model.connect_selected_item_notify(|model| {
-        dbg!(model.selected());
-    });
+
     let list_view = ListView::new(Some(selection_model), Some(factory));
 
     list_view.connect_activate(clone!(

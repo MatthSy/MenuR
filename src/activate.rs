@@ -18,6 +18,7 @@ pub(crate) fn activate_entry(app: &Application, entries: &[Entry], list_view: &L
         .expect("There should be an IntegerObject here")
         .number();
     let entry = &entries[id as usize];
+    println!("Starting {}...", entry.entry_path);
     match std::process::Command::new("dex")
         .arg(&entry.entry_path)
         .spawn()
